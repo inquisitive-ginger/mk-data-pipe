@@ -26,7 +26,7 @@ def acquire_video():
 
     # grab frames and put them into a buffer as they come in
     while True:
-        ret, frame = capture.read()
+        ret, frame = capture.read(1)
         if ret:
             frame = transform_frame(frame)
             frames.append(frame)
