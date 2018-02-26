@@ -41,9 +41,6 @@ class MKVideoCapture:
 
     def calc_optical_flow(self):
         frame1 = self.frame_bundle[0]
-        print('frame_bundle: ', len(self.frame_bundle))
-        print('frame:', frame1)
-        print(self.frame_bundle[0].shape)
         prvs = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
         hsv = np.zeros_like(frame1)
         hsv[...,1] = 255
@@ -55,13 +52,11 @@ class MKVideoCapture:
             flow = cv2.calcOpticalFlowFarneback(prvs, next, None, 0.5, 3, 15, 3, 5, 1.2, 0)
 
             mag, ang = cv2.cartToPolar(flow[...,0], flow[...,1])
-            print('mag:', mag)
             hsv[...,0] = ang*180/np.pi/2
             hsv[...,2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
             bgr = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
 
             optical_flow_sum += np.mean(mag)
-            print('optical_flow_sum: ', optical_flow_sum)
             prvs = next
 
         return optical_flow_sum

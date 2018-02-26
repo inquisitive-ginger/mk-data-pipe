@@ -4,7 +4,7 @@ import asyncio
 import websockets
 
 async def sendCommand():
-    async with websockets.connect('ws://192.168.1.1:80/ws') as websocket:
+    async with websockets.connect('ws://192.168.4.1:80/ws') as websocket:
         while True: 
             name = input("What angle? ")
             await websocket.send(name)
