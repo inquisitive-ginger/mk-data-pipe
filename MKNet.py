@@ -5,18 +5,14 @@ import os
 import random
 import numpy as np
 import math
-import time
-from time import sleep
+# import time
+# from time import sleep
 import mxnet.ndarray as F
 from threading import Thread
 
+from MKSerial import MKSerial
 from MKEnv import MKEnv
-from ActionServer import ActionServer
-
-# game environment init
-EPISODES = 1000000  # Number of episodes to be played
-LEARNING_STEPS = 600  # Maximum number of learning steps within each episodes
-DISPLAY_COUNT = 10  # The number of episodes to play before showing statistics.
+from MKActionServer import MKActionServer
 
 class Net(gluon.Block):
     def __init__(self, available_actions_count):
@@ -52,6 +48,11 @@ class MKNet(object):
         # ctx = mx.gpu()
         self.ctx = mx.cpu()
 
+        # game environment init
+        self.episodes = 1000000  # Number of episodes to be played
+        self.learning_steps = 100  # Maximum number of learning steps within each episodes
+        self.display_count = 10  # The number of episodes to play before showing statistics.
+
         #  https://machinelearningmastery.com/adam-optimization-algorithm-for-deep-learning/
         # params for gluon trainer
         self.gamma = 0.9
@@ -62,11 +63,14 @@ class MKNet(object):
         self.momentum_param = 0.05
         self.learning_rates = [0.0001, 0.01]
 
-        self.env = MKEnv(bundle_size=8)
+        #serial initialization
+        self.mk_serial = MKSerial('/dev/tty.SLAB_USBtoUART')
+        
+        self.env = MKEnv(8, self.mk_serial)
         self.actions = []
         self.frame_repeat = 4
         self.num_action = len(self.env.action_space)
-        self.action_server = ActionServer('ws://192.168.4.1:80/ws', self.actions)
+        self.action_server = MKActionServer('ws://192.168.4.1:80/ws', self.mk_serial, self.actions, 1)
 
         self.loss = gluon.loss.L2Loss()
         self.model = Net(self.num_action)
@@ -92,9 +96,10 @@ class MKNet(object):
         train_scores = [0]
         num_action_index = 0
 
-        for episode in range(0, EPISODES):
+        for episode in range(0, self.episodes):
             # modify this line below env.reset should send back the next pack of 8 frames
             # we could use instead of env.reset the preprocess function
+            self.action_server.reset_last_action()
             next_frame_bundle = self.env.reset()
             s1 = next_frame_bundle
 
@@ -104,13 +109,15 @@ class MKNet(object):
             heads = []
 
             with autograd.record():
-                for learning_step in range(LEARNING_STEPS):
+                for learning_step in range(self.learning_steps):
                     # Converts and down-samples the input image
                     prob, value = self.model(s1)
                     # dont always take the argmax, instead pick randomly based on probability
                     index, logp = mx.nd.sample_multinomial(prob, get_prob=True)           
                     action = index.asnumpy()[0].astype(np.int64)
-                    self.actions.append(self.env.action_map[action])
+                    # self.actions.append(self.env.action_map[action])
+                    self.actions.append(action)
+                    
                     
                     # print('#', num_action_index,': ' , 'action Number: ', action, self.env.action_space[action])
                     num_action_index += 1
@@ -161,13 +168,13 @@ class MKNet(object):
                 autograd.backward(final_nodes)
             self.optimizer.step(s1.shape[0])
 
-            if episode % DISPLAY_COUNT == 0:
+            if episode % self.display_count == 0:
                 train_scores = np.array(train_scores)
                 print("Episodes {}\t".format(episode),
                     "Results: mean: %.1f +/- %.1f," % (train_scores.mean(), train_scores.std()),
                     "min: %.1f," % train_scores.min(), "max: %.1f," % train_scores.max(),
                     "actions: ", np.unique(actions, return_counts=True))
                 train_scores = []
-            if episode % 1000 == 0 and episode != 0:
-                # model.save_params("/data/asteroids.params")
+            if episode % 5 == 0 and episode != 0:
+                self.model.save_params("./params/mkEpisodes_%d.params" % episode)
                 pass

@@ -1,3 +1,6 @@
+# params folder
+params/
+
 # OS X
 .DS_Store*
 Icon?
