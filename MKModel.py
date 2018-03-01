@@ -6,7 +6,7 @@ class Net(gluon.Block):
     def __init__(self, available_actions_count):
         super(Net, self).__init__()
         with self.name_scope():
-            self.conv1 = gluon.nn.Conv2D(16, kernel_size=5, strides=2)
+            self.conv1 = gluon.nn.Conv2D(8, kernel_size=5, strides=2)
             self.bn1 = gluon.nn.BatchNorm()
             self.conv2 = gluon.nn.Conv2D(32, kernel_size=5, strides=2)
             self.bn2 = gluon.nn.BatchNorm()

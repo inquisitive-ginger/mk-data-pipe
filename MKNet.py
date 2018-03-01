@@ -1,3 +1,4 @@
+import time
 import mxnet as mx
 from mxnet import nd, autograd
 from mxnet import gluon
@@ -7,7 +8,7 @@ from threading import Thread
 from MKModel import Net
 
 class MKNet(object):
-    def __init__(self, serial_instance, action_server_instance, env_instance):
+    def __init__(self, serial_instance, action_server_instance, env_instance, params, results):
         self.ctx = mx.cpu()
 
         #  https://machinelearningmastery.com/adam-optimization-algorithm-for-deep-learning/
@@ -16,7 +17,7 @@ class MKNet(object):
         self.beta1 = 0.9
         self.beta2 = 0.999
         self.epsilon = 1e-8
-        self.learning_rate = 0.0001
+        self.learning_rate = 0.00001
         self.momentum_param = 0.05
         self.learning_rates = [0.0001, 0.01]
 
@@ -25,12 +26,20 @@ class MKNet(object):
         self.mk_serial = serial_instance
         self.env = env_instance
         self.action_server = action_server_instance
+        self.result_writer = results
 
         self.num_action = len(self.env.action_space)
 
+        self.params = params
         self.loss = gluon.loss.L2Loss()
         self.model = Net(self.num_action)
-        self.model.collect_params().initialize(mx.init.Xavier(), ctx=self.ctx)
+        
+        # initialize random params or from file
+        if(self.params is not None):
+            self.model.load_params(self.params, ctx=self.ctx)
+        else:
+            self.model.collect_params().initialize(mx.init.Xavier(), ctx=self.ctx)
+            
         self.optimizer = gluon.Trainer(self.model.collect_params(), 'adam', {'learning_rate': self.learning_rate,  "beta1": self.beta1,  "beta2": self.beta2, "epsilon": self.epsilon})
 
     # start a sperate training thread that will push actions into a list
@@ -43,7 +52,7 @@ class MKNet(object):
     # step through the environment and take actions based on policy and value
     # function approximations
     def train(self):
-        print("Training has begun....")
+        print("Starting training...")
         episode_rewards = 0
         final_rewards = 0
 
@@ -59,15 +68,9 @@ class MKNet(object):
             next_frame_bundle = self.env.reset()
             s1 = next_frame_bundle
 
-            #update the number of steps depending on number of episodes
-            if episode < 100:
-                self.env.local_learning_steps = self.env.learning_steps
-            elif episode < 200:
-                self.env.local_learning_steps = self.env.learning_steps * 2
-            elif episode < 300:
-                self.env.local_learning_steps = self.env.learning_steps * 3
-            else:
-                self.env.local_learning_steps = self.env.learning_steps * 4
+            # update the number of steps depending on number of episodes
+            if(episode % 10 == 0 and episode != 0):
+                self.env.learning_steps += 10
 
             rewards = []
             values = []
@@ -75,10 +78,13 @@ class MKNet(object):
             heads = []
 
             with autograd.record():
-                for learning_step in range(self.env.local_learning_steps):
+                for learning_step in range(self.env.learning_steps):
                     # Converts and down-samples the input image
+                    before_model = time.time()
                     prob, value = self.model(s1)
+                    after_model = time.time()
                     # dont always take the argmax, instead pick randomly based on probability
+                    # print(prob)
                     index, logp = mx.nd.sample_multinomial(prob, get_prob=True)           
                     action = index.asnumpy()[0].astype(np.int64)
                     # self.actions.append(self.env.action_map[action])
@@ -94,11 +100,13 @@ class MKNet(object):
                         # a function that sends back the optical flow
                         # when these two functions returns something we can set done (below) to true
                         # not sure about the underscore
+                    before_step = time.time()
                     next_frame_bundle, rew, done = self.env.step(action)
+                    after_step = time.time()
 
                     reward += rew
-                    print("EP: {:<5} | STEP {:<3} | ACTION: {:<8} | REWARD: {:4f}".format(episode, learning_step, self.env.action_space[action], rew))
-
+                    print("EP: {:<5} | STEP {:<3} | ACTION: {:<12} | REWARD: {:4f}".format(episode, learning_step, self.env.action_space[action], rew))
+                    print("Model Calc Time: {:<4} | Frame Bundle Time: {:4}".format(after_model - before_model, after_step - before_step))
                 isterminal = done
                 rewards.append(reward)
                 actions.append(action)
@@ -133,8 +141,12 @@ class MKNet(object):
                 autograd.backward(final_nodes)
             self.optimizer.step(s1.shape[0])
 
+            train_scores = np.array(train_scores)
+            self.result_writer.append_results("{},{:2},{:2},{:2}\n".format(episode, train_scores.mean(), train_scores.min(), train_scores.max()))
+            train_scores = train_scores.tolist()
+
             if episode % self.env.display_count == 0:
-                train_scores = np.array(train_scores)
+                train_scores = np.array(train_scores)            
                 print("Episodes {}\t".format(episode),
                     "Results: mean: %.1f +/- %.1f," % (train_scores.mean(), train_scores.std()),
                     "min: %.1f," % train_scores.min(), "max: %.1f," % train_scores.max(),
