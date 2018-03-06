@@ -31,18 +31,20 @@ class MKVideoCapture:
         while index < self.bundle_size:
             ret, frame = self.capture.read()
             if ret:
+                # Next line is needed to detect direction
+                if index == self.bundle_size - 1: last_frame = frame
                 frame = self.transform_frame(frame)
                 frames.append(frame)
             index += 1
             
         self.frame_bundle = frames
+        return last_frame
 
     def get_transposed_frames(self):
         # mxArray = mx.nd.empty((self.bundle_size, self.frame_height, self.frame_width, 3))
         mxArray = mx.nd.array(self.frame_bundle)
         mxArray = mxArray[0:self.bundle_size, :, :, :].transpose((0, 3, 2, 1)).reshape((-1, self.frame_width//self.resize_ratio, self.frame_height//self.resize_ratio)) # reshaping
         mxArray = mxArray.expand_dims(0) # expanding to (1, bundle_size*3, height, width)
-
         return mxArray
 
     def calc_optical_flow(self):

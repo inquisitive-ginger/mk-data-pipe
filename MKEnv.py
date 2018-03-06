@@ -1,5 +1,5 @@
 import time
-# from MKVideoCapture import MKVideoCapture
+from MKDirectionDetect import MKDirectionDetect
 
 class MKEnv(object):
     def __init__(self, capture_instance, mk_serial, num_episodes, learning_steps, display_count):
@@ -12,6 +12,9 @@ class MKEnv(object):
         self.action_space = ['accel', 'left_accel', 'right_accel']
         self.mk_serial = mk_serial
         self.reset_commands = ['-', 's', 'j']
+        # Loading model to predict direction of Mario
+        self.directionModel = MKDirectionDetect(ctx=mx.cpu())
+        self.directionModel.dirNet.load_params("./model.params", ctx=mx.cpu())
 
     def reset(self):
         for command in self.reset_commands:
@@ -32,8 +35,18 @@ class MKEnv(object):
         return reward
     
     def step(self, action):
-        self.capture.set_frame_bundle()
+        # last_frame used to detect the direction
+        last_frame = self.capture.set_frame_bundle()
+        print('last frame:', last_frame)    
         print("Time @ Bundle: ")
         transposed_frames = self.capture.get_transposed_frames()
-        optical_flow = self.capture.calc_optical_flow()
-        return transposed_frames, self.calc_reward(optical_flow), False
+        
+        direction = self.directionModel.classify_direction(last_frame)
+
+        if direction == 'backward':
+            reward = -1000
+        else: 
+            optical_flow = self.capture.calc_optical_flow()
+            reward = self.calc_reward(optical_flow)
+
+        return transposed_frames, reward, False

@@ -125,8 +125,8 @@ class MKNet(object):
                     R = rewards[i] + self.gamma * R
                     rewards[i] = R
                 rewards = np.array(rewards)
-                rewards -= rewards.mean()
-                rewards /= rewards.std() + np.finfo(rewards.dtype).eps
+                #rewards -= rewards.mean()
+                #rewards /= rewards.std() + np.finfo(rewards.dtype).eps
 
                 # compute loss and gradient
                 L = sum([self.loss(value, mx.nd.array([r]).as_in_context(self.ctx)) for r, value in zip(rewards, values)])
