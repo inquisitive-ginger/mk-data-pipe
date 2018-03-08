@@ -19,7 +19,7 @@ window = 5 # seconds of data to view at once
 
 frames = []
 optical_flows = []
-num_frames = 8
+num_frames = 5
 def acquire_video():
     # connect to capture card stream
     capture = cv2.VideoCapture(1)
@@ -31,14 +31,11 @@ def acquire_video():
             frame = transform_frame(frame)
             frames.append(frame)
             if len(frames) % num_frames == 0:
-                # print(capture.get(cv2.CAP_PROP_FRAME_WIDTH), capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
                 plot_optical_flow(frames[-1*num_frames:])
-                # print(frame.shape)
+                pass
 
             # cv2.imshow('frame', frame)
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+            # cv2.waitKey(0)
 
     return frames
 

@@ -5,7 +5,7 @@ from mxnet import gluon
 import numpy as np
 import math
 from threading import Thread
-from MKModel import Net
+from MKModel import FinalNet, OriginalNet
 
 class MKNet(object):
     def __init__(self, serial_instance, action_server_instance, env_instance, params, results):
@@ -17,7 +17,7 @@ class MKNet(object):
         self.beta1 = 0.9
         self.beta2 = 0.999
         self.epsilon = 1e-8
-        self.learning_rate = 0.0000001
+        self.learning_rate = 0.0000000001
         self.momentum_param = 0.05
         self.learning_rates = [0.0001, 0.01]
 
@@ -32,15 +32,13 @@ class MKNet(object):
 
         self.params = params
         self.loss = gluon.loss.L2Loss()
-        self.model = Net(self.num_action)
+        self.model = OriginalNet(self.num_action)
         
         # initialize random params or from file
         if(self.params is not None):
             self.model.load_params(self.params, ctx=self.ctx)
         else:
-            self.model.collect_params().initialize(mx.init.Xavier(), ctx=self.ctx)
-            # self.model.value_pred.collect_params().initialize(mx.init.Xavier(), ctx=self.ctx)
-            # self.model.action_pred.collect_params().initialize(mx.init.Xavier(), ctx=self.ctx)            
+            self.model.collect_params().initialize(mx.init.Xavier(), ctx=self.ctx)           
         
         self.optimizer = gluon.Trainer(self.model.collect_params(), 'adam', {'learning_rate': self.learning_rate,  "beta1": self.beta1,  "beta2": self.beta2, "epsilon": self.epsilon})        
         # self.action_optimizer = gluon.Trainer(self.model.value_pred.collect_params(), 'adam', {'learning_rate': self.learning_rate,  "beta1": self.beta1,  "beta2": self.beta2, "epsilon": self.epsilon})
@@ -80,11 +78,10 @@ class MKNet(object):
                     before_model = time.time()
                     prob, value = self.model(s1)
                     after_model = time.time()
-                    print("MODEL TIME: {}".format(after_model - before_model))
+                    # print("MODEL TIME: {}".format(after_model - before_model))
                     # dont always take the argmax, instead pick randomly based on probability
                     index, logp = mx.nd.sample_multinomial(prob, get_prob=True)           
                     action = index.asnumpy()[0].astype(np.int64)
-                    print("Received action...")
                     # self.actions.append(self.env.action_map[action])
                     self.actions.append(action)
 
@@ -94,7 +91,7 @@ class MKNet(object):
                     stop_step = time.time()
 
                     print("EP: {:<5} | STEP {:<3} | ACTION: {:<12} | REWARD: {:4f}".format(episode, learning_step, self.env.action_space[action], rew))
-                    print("STEP TIME: {}".format(stop_step - start_step))
+                    # print("STEP TIME: {}".format(stop_step - start_step))
 
                     isterminal = done
                     rewards.append(rew)
@@ -114,8 +111,8 @@ class MKNet(object):
                     rewards[i] = R
                 rewards = np.array(rewards)
                 train_scores.append(np.sum(rewards))
-                print("Rewards: {}".format(rewards))
-                print("Episode Reward: {}".format(sum(rewards)))
+                # print("Rewards: {}".format(rewards))
+                print("Episode Reward: {}".format(np.sum(rewards)))
                 #rewards -= rewards.mean()
                 #rewards /= rewards.std() + np.finfo(rewards.dtype).eps
 
@@ -138,7 +135,7 @@ class MKNet(object):
             self.result_writer.append_results("{},{:2},{:2},{:2}\n".format(episode, train_scores.mean(), train_scores.min(), train_scores.max()))
             train_scores = train_scores.tolist()
 
-            if episode % self.env.display_count == 0:
+            if episode % self.env.display_count == 0 and episode != 0:
                 train_scores = np.array(train_scores)            
                 print("Episodes {}\t".format(episode),
                     "Results: mean: %.1f +/- %.1f," % (train_scores.mean(), train_scores.std()),

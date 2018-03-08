@@ -63,7 +63,6 @@ class MKActionServer(object):
     async def _command_server_serial_loop(self, actions):
         while True:
             next_action_index = self._get_next_action(actions)
-
             if (next_action_index is not None):
                 for action in self._serial_action_map[next_action_index]:
                     self._mk_serial.send_command(action)

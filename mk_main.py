@@ -10,7 +10,7 @@ from MKDirectionDetect import MKDirectionDetect
 
 def main():
     # video capture parameters
-    bundle_frame_size = 2
+    bundle_frame_size = 5
     camera_number = 1 #usually 0 or 1
 
     # communication parameters
@@ -24,7 +24,7 @@ def main():
 
     # game environment init
     num_episodes = 1000000  # Number of episodes to be played
-    learning_steps = 15  # Maximum number of learning steps within each episodes
+    learning_steps = 1000  # Maximum number of learning steps within each episodes
     display_count = 10  # The number of episodes to play before showing statistics.
 
     # initiate a serial communication

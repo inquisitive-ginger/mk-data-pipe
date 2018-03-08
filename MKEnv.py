@@ -29,14 +29,6 @@ class MKEnv(object):
         # print('bundle of frames: ', bundle) #this verifies that we have a pack of frames in our self.capture instance
         # return self.capture.get_transposed_frames() # this grabs the frame_bundle and transposes it
         return self.capture.get_transposed_frame()
-
-    # def calc_reward(self, of):
-    #     reward = 0
-    #     if(of > 2):
-    #         reward = of
-    #     else:
-    #         reward = -1
-    #     return reward
     
     def step(self, action, step_number):
         # backwards_frame used to detect the direction
@@ -49,15 +41,16 @@ class MKEnv(object):
         if direction == 'backward':
             backwards = True
         after_detect = time.time()
-        print("DETECT TIME: {}".format(after_detect - before_detect))
+        # print("DETECT TIME: {}".format(after_detect - before_detect))
         
         # if we're on step 1,2 or 3 we can't possibly be going backwards so we didn't detect backwards
         # this fixes instances where we get negative rewards on early steps
         if step_number > 3 and backwards:
-            reward = 0
+            reward = -100
         else: 
-            reward = self.capture.calc_optical_flow()
+            reward = 1 / self.capture.calc_optical_flow()
 
-        # print('before return:', time.time())
-        # print('frames no transpose shape: ', transposed_frame.shape)
-        return transposed_frame, reward, False
+        return transposed_frame, reward, self.detect_done()
+
+    def detect_done(self):
+        return False

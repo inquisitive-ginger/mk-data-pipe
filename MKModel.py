@@ -2,9 +2,9 @@ import mxnet as mx
 from mxnet import nd
 from mxnet import gluon
 
-class Net(gluon.Block):
+class OriginalNet(gluon.Block):
     def __init__(self, available_actions_count):
-        super(Net, self).__init__()
+        super(OriginalNet, self).__init__()
 
         mobilenet = gluon.model_zoo.vision.mobilenet1_0(pretrained=True)
 
@@ -33,3 +33,30 @@ class Net(gluon.Block):
         probs = self.action_pred(x)
         values = self.value_pred(x)
         return mx.ndarray.softmax(probs), values
+
+class OutputNet(gluon.Block):
+    def __init__(self, available_actions_count):
+        super(OutputNet, self).__init__()
+
+        with self.name_scope():
+            self.action_pred = gluon.nn.Dense(available_actions_count)
+            self.value_pred = gluon.nn.Dense(1)
+
+    def forward(self, x):
+        action_probs = self.action_pred(x)
+        value = self.value_pred(x)
+        return mx.nd.softmax(action_probs), value
+
+class FinalNet(gluon.Block):
+    def __init__(self, available_actions_count):
+        super(FinalNet, self).__init__()
+
+        with self.name_scope():
+            self.mobilenet_features = gluon.model_zoo.vision.mobilenet1_0(pretrained=True).features
+            self.output = OutputNet(available_actions_count)
+
+    def forward(self, x):
+        x = self.mobilenet_features(x)
+        action_probs, value = self.output(x)
+
+        return action_probs, value

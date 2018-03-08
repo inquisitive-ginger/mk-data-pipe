@@ -9,7 +9,7 @@ class MKVideoCapture:
         self.capture = cv2.VideoCapture(camera_number)
         self.bundle_size = bundle_size
         self.frame_width = 1920
-        self.frame_height = 650
+        self.frame_height = 650 # this can't be right
         self.frame_bundle = []
         self.resize_ratio = 4
 
@@ -17,9 +17,10 @@ class MKVideoCapture:
         start_y = 480
         start_x = 0
 
+        (h, w, c) = frame.shape
         # frame = frame.astype(np.float32)/255 # squish pixel values between [0, 1]
-        frame = frame[start_y:start_y+self.frame_height, start_x:start_x+self.frame_width] # crop image to grab just mario and immediate surroundings
-        frame = cv2.resize(frame, (self.frame_width//self.resize_ratio, self.frame_height//self.resize_ratio)) # scale image
+        # frame = frame[start_y:start_y+self.frame_height, start_x:start_x+self.frame_width] # crop image to grab just mario and immediate surroundings
+        frame = cv2.resize(frame, (w//self.resize_ratio, h//self.resize_ratio)) # scale image
         return frame
     
     def set_frame_bundle(self):
@@ -37,19 +38,19 @@ class MKVideoCapture:
             index += 1
         self.frame_bundle = frames
         after_bundle = time.time()
-        print('BUNDLE TIME: {}'.format(after_bundle - before_bundle))
+        # print('BUNDLE TIME: {}'.format(after_bundle - before_bundle))
         # return first and last frame
         return self.frame_bundle
 
     def get_transposed_frame(self):
         before_transpose = time.time()
         # mxArray = mx.nd.empty((self.bundle_size, self.frame_height, self.frame_width, 3))
-        orig_frame = mx.nd.array(self.frame_bundle[-1])
+        orig_frame = mx.nd.array(self.transform_frame(self.frame_bundle[-1]))
         # mxArray = mxArray[0:self.bundle_size, :, :, :].transpose((0, 3, 2, 1)).reshape((-1, self.frame_width//self.resize_ratio, self.frame_height//self.resize_ratio)) # reshaping
         transposed_frame = orig_frame.transpose((2, 0, 1))
         transposed_frame = transposed_frame.expand_dims(0) # expanding to (1, bundle_size*3, height, width)
         after_transpose = time.time()
-        print("TRANSPOSE TIME: {}".format(after_transpose - before_transpose))
+        # print("TRANSPOSE TIME: {}".format(after_transpose - before_transpose))
         return transposed_frame
 
     def calc_optical_flow(self):
@@ -59,6 +60,26 @@ class MKVideoCapture:
         flow = cv2.calcOpticalFlowFarneback(frame1, frame2, None, 0.5, 3, 15, 3, 5, 1.2, 0)
         mag, _ = cv2.cartToPolar(flow[...,0], flow[...,1])
         after_flow = time.time()
-        print('FLOW TIME: {}'.format(after_flow - before_flow))
-        
+        # print('FLOW TIME: {}'.format(after_flow - before_flow))
         return np.mean(mag)
+
+        # frame1 = self.frame_bundle[0]
+        # prvs = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
+        # hsv = np.zeros_like(frame1)
+        # hsv[...,1] = 255
+
+        # optical_flow_sum = 0
+        # for frame in self.frame_bundle[1:]:
+        #     next = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+        #     flow = cv2.calcOpticalFlowFarneback(prvs, next, None, 0.5, 3, 15, 3, 5, 1.2, 0)
+
+        #     mag, ang = cv2.cartToPolar(flow[...,0], flow[...,1])
+        #     hsv[...,0] = ang*180/np.pi/2
+        #     hsv[...,2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
+        #     bgr = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+
+        #     optical_flow_sum += mag.mean()
+        #     prvs = next
+
+        # return optical_flow_sum
