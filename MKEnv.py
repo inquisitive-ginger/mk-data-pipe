@@ -1,5 +1,6 @@
 import time
 from MKDirectionDetect import MKDirectionDetect
+import mxnet as mx
 
 class MKEnv(object):
     def __init__(self, capture_instance, mk_serial, num_episodes, learning_steps, display_count):
@@ -26,18 +27,18 @@ class MKEnv(object):
         self.capture.set_frame_bundle()
         return self.capture.get_transposed_frames()
 
-    def calc_reward(self, of):
-        reward = 0
-        if(of > 5):
-            reward = of
-        else:
-            reward = -1
-        return reward
+    # def calc_reward(self, of):
+    #     reward = 0
+    #     if(of > 5):
+    #         reward = of
+    #     else:
+    #         reward = -1
+    #     return reward
     
     def step(self, action):
         # last_frame used to detect the direction
         last_frame = self.capture.set_frame_bundle()
-        print('last frame:', last_frame)    
+        # print('last frame:', last_frame)    
         print("Time @ Bundle: ")
         transposed_frames = self.capture.get_transposed_frames()
         
@@ -47,6 +48,7 @@ class MKEnv(object):
             reward = -1000
         else: 
             optical_flow = self.capture.calc_optical_flow()
-            reward = self.calc_reward(optical_flow)
+            reward = 1/optical_flow
+            # reward = self.calc_reward(optical_flow)
 
         return transposed_frames, reward, False

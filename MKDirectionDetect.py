@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO)
 from mxnet.gluon.model_zoo import vision as models
 from mxnet.image import color_normalize
 import cv2
-from plotImages import PlotImages
+# from plotImages import PlotImages
 
 batch_size = 64
 ctx = [mx.cpu()]
@@ -124,7 +124,7 @@ class MKDirectionDetect(object):
             if val_accs[1] > best_f1:
                 best_f1 = val_accs[1]
                 print('Best validation f1 found. Checkpointing...')
-                self.dirNet.save_params('direction-%d.params'%(epoch)
+                self.dirNet.save_params('direction-%d.params'%(epoch))
     
     def cropAndResizeToSquareImage(self, numpyImage):
         if numpyImage is not None:
@@ -139,17 +139,15 @@ class MKDirectionDetect(object):
         else:
             pass
 
-    def classify_direction(self, url):
-        I = cv2.imread(url)
+    def classify_direction(self, I):
+        I = self.cropAndResizeToSquareImage(I)
         I = nd.array(I)
         image, label = self.transform(I, nd.array([0]))
         image = image.expand_dims(0)
         out = mx.nd.softmax(self.dirNet(image))
-        print('Probabilities are: '+str(out[0].asnumpy()))
         result = np.argmax(out.asnumpy())
         outstring = ['forward', 'backward']
-        print(outstring[result])
-        return outstring
+        return outstring[result]
 
 # directionModel = MKDirectionDetect()
 # directionModel.dirNet.save_params("./model.params")
