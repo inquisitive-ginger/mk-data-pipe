@@ -5,6 +5,9 @@ from mxnet import gluon
 class Net(gluon.Block):
     def __init__(self, available_actions_count):
         super(Net, self).__init__()
+
+        mobilenet = gluon.model_zoo.vision.mobilenet1_0(pretrained=True)
+
         with self.name_scope():
             self.conv1 = gluon.nn.Conv2D(8, kernel_size=5, strides=2)
             self.bn1 = gluon.nn.BatchNorm()

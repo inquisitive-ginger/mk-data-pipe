@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO)
 from mxnet.gluon.model_zoo import vision as models
 from mxnet.image import color_normalize
 import cv2
-from plotImages import PlotImages
+# from plotImages import PlotImages
 
 batch_size = 64
 ctx = [mx.cpu()]
@@ -124,8 +124,9 @@ class MKDirectionDetect(object):
             if val_accs[1] > best_f1:
                 best_f1 = val_accs[1]
                 print('Best validation f1 found. Checkpointing...')
-                self.dirNet.save_params('direction-%d.params'%(epoch)
-    
+                self.dirNet.save_params('direction-%d.params'%(epoch))
+                
+    # Older function to crop from the resize middle
     def cropAndResizeToSquareImage(self, numpyImage):
         if numpyImage is not None:
             (h,w,c) = numpyImage.shape
@@ -138,18 +139,25 @@ class MKDirectionDetect(object):
             return resizedImage
         else:
             pass
+    
+    def cropAndResizeFromTopMiddle(self, numpyImage):
+        (h, w, c) = numpyImage.shape
+        croppedImage = numpyImage[0:w//4, (w//2)-(w//8):(w//2)+(w//8)]
+        (h,w,c) = croppedImage.shape
+        resizedImage = cv2.resize(croppedImage, (w//2, h//2)) #scale image
+        return resizedImage
 
-    def classify_direction(self, url):
-        I = cv2.imread(url)
+    def classify_direction(self, I):
+        # I = cv2.imread(url)
+        I = self.cropAndResizeToSquareImage(I)
         I = nd.array(I)
         image, label = self.transform(I, nd.array([0]))
         image = image.expand_dims(0)
         out = mx.nd.softmax(self.dirNet(image))
-        print('Probabilities are: '+str(out[0].asnumpy()))
+        # print('Probabilities are: '+str(out[0].asnumpy()))
         result = np.argmax(out.asnumpy())
         outstring = ['forward', 'backward']
-        print(outstring[result])
-        return outstring
+        return outstring[result]
 
 # directionModel = MKDirectionDetect()
 # directionModel.dirNet.save_params("./model.params")

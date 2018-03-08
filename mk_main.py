@@ -1,9 +1,12 @@
+import mxnet as mx
+
 from MKNet import MKNet
 from MKSerial import MKSerial
 from MKEnv import MKEnv
 from MKActionServer import MKActionServer
 from MKVideoCapture import MKVideoCapture
 from MKResults import MKResults
+from MKDirectionDetect import MKDirectionDetect
 
 def main():
     # video capture parameters
@@ -14,6 +17,10 @@ def main():
     serial_port = '/dev/tty.SLAB_USBtoUART'
     esp32_url = 'ws://192.168.4.1:80/ws'
     mode = 1 # 1 = serial, 0 = websockets
+
+    # Loading model to predict direction of Mario
+    directionModel = MKDirectionDetect()
+    directionModel.dirNet.load_params("./model.params", ctx=mx.cpu())
 
     # game environment init
     num_episodes = 1000000  # Number of episodes to be played
@@ -30,7 +37,7 @@ def main():
     capture_instance = MKVideoCapture(camera_number, bundle_frame_size)
 
     # start environment
-    env_instance = MKEnv(capture_instance, serial_instance, num_episodes, learning_steps, display_count)
+    env_instance = MKEnv(capture_instance, serial_instance, num_episodes, learning_steps, display_count, directionModel)
 
     # results logging class
     results_instance = MKResults('./results/mk_data.csv')
